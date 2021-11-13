@@ -2,10 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'access_bloc.dart';
-import 'access_event.dart';
-import 'access_state.dart';
+import 'package:equatable/equatable.dart';
 
 /* Quick and dirty sample code to illustrate how to use navigation in combination of using the bloc pattern */
 void main() {
@@ -20,92 +17,17 @@ class MyApp extends StatelessWidget {
 
   MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    var initialRoute = '1';
-
     return BlocProvider<AccessBloc>(
         create: (context) => AccessBloc(navigatorKey)..add(AccessInit(1)),
         child: MaterialApp(
-          key: _appKey,
-          debugShowCheckedModeBanner: false,
-          navigatorKey: navigatorKey,
-          scaffoldMessengerKey: rootScaffoldMessengerKey,
-          initialRoute: initialRoute,
-          onGenerateRoute: generateRoute,
-          title: 'No title',
+          home: PageComponent()
         ));
   }
 }
 
-class Arguments {
-  final String? mainArgument;
-  final Map<String, dynamic>? parameters;
-
-  Arguments(this.mainArgument, this.parameters);
-}
-
-Route<dynamic> generateRoute(RouteSettings settings) {
-  var settingsUri = Uri.parse(settings.name!);
-  var path = settingsUri.path;
-  return getRoute(path);
-}
-
-Route<dynamic> getRoute(String path/*, Map<String, dynamic>? parameters*/) {
-  return pageRouteBuilderWithAppId(path, page());
-}
-
-Widget page() => PageComponent();
-
-PageRouteBuilder pageRouteBuilderWithAppId(String pageId, Widget page) {
-  return FadeRoute(
-      name: pageId,
-      page: page,
-      milliseconds: 1000);
-}
-
-class FadeRoute extends PageRouteBuilder {
-  final Widget? page;
-  final int milliseconds;
-
-  FadeRoute(
-      {String? name,
-      Map<String, dynamic>? parameters,
-      this.page,
-      required this.milliseconds})
-      : super(
-          settings: RouteSettings(name: name, arguments: parameters),
-          pageBuilder: (
-            BuildContext context,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-          ) =>
-              page!,
-          transitionDuration: Duration(milliseconds: milliseconds),
-          transitionsBuilder: (
-            BuildContext context,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-            Widget child,
-          ) =>
-              FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
-        );
-}
-
-
 class PageComponent extends StatefulWidget {
-  final GlobalKey _pageKey = GlobalKey();
-
-  final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
-  GlobalKey<ScaffoldMessengerState>();
-
-  PageComponent();
-
   @override
   State<StatefulWidget> createState() {
     return _PageComponentState();
@@ -125,7 +47,7 @@ class _PageComponentState extends State<PageComponent> {
             if (accessState is PageState) {
               return Scaffold(
                 appBar: AppBar(
-                  title: Text('Navigation with flutter_bloc'),
+                  title: const Text('Navigation with flutter_bloc'),
                 ),
                 body: Center(
                   child: Column(
@@ -145,22 +67,87 @@ class _PageComponentState extends State<PageComponent> {
                   onPressed: () => BlocProvider.of<AccessBloc>(context).add(GotoPage(accessState.pageId + 1)),
                   tooltip: 'Next page',
                   child: const Icon(Icons.add),
-                ), // This trailing comma makes auto-formatting nicer for build methods.
+                ),
               );
 
             } else {
-              return Text("Not PageState");
+              return const Text('Not PageState');
             }
           }),
       listener: (BuildContext context, accessState) {
         if (accessState is PageState) {
-          unawaited(Navigator.of(context).pushNamed(
-            accessState.pageId.toString(),
-            //arguments: Arguments(accessState.pageId,)));
-          ));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => PageComponent()),
+          );
         }
       },
     );
 
   }
+}
+
+class AccessBloc extends Bloc<AccessEvent, AccessState> {
+  StreamSubscription? _appSubscription;
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  AccessBloc(this.navigatorKey) : super(UndeterminedState());
+
+  @override
+  Stream<AccessState> mapEventToState(AccessEvent event) async* {
+    if (event is AccessInit) {
+      yield PageState(event.initialPageId);
+    } else if (event is GotoPage) {
+      yield PageState(event.pageId);
+    }
+  }
+}
+
+abstract class AccessEvent extends Equatable {
+  @override
+  List<Object?> get props => [];
+}
+
+class AccessInit extends AccessEvent {
+  final int initialPageId;
+
+  AccessInit(this.initialPageId);
+
+  @override
+  List<Object?> get props => [ initialPageId ];
+}
+
+class GotoPage extends AccessEvent {
+  final int pageId;
+
+  GotoPage(this.pageId);
+
+  @override
+  List<Object?> get props => [ pageId ];
+}
+
+abstract class AccessState extends Equatable {
+  const AccessState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class UndeterminedState extends AccessState {
+
+}
+
+class PageState extends AccessState {
+  final int pageId;
+
+  PageState(this.pageId);
+
+  @override
+  List<Object?> get props => [ pageId ];
+
+  @override
+  bool operator == (Object other) =>
+      identical(this, other) ||
+          other is PageState &&
+              pageId == other.pageId;
 }
