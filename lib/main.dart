@@ -21,9 +21,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<AccessBloc>(
         create: (context) => AccessBloc(navigatorKey)..add(AccessInit(1)),
-        child: MaterialApp(
-          home: PageComponent()
-        ));
+        child: MaterialApp(home: PageComponent()));
   }
 }
 
@@ -39,11 +37,14 @@ class _PageComponentState extends State<PageComponent> {
 
   @override
   Widget build(BuildContext context) {
+    print('rebuilding StatefulWidget');
     return BlocListener(
       bloc: BlocProvider.of<AccessBloc>(context),
       child: BlocBuilder(
           bloc: BlocProvider.of<AccessBloc>(context),
           builder: (BuildContext context, accessState) {
+            print(
+                'BlocBuilder key is ${BlocProvider.of<AccessBloc>(context).navigatorKey}');
             if (accessState is PageState) {
               return Scaffold(
                 appBar: AppBar(
@@ -64,18 +65,24 @@ class _PageComponentState extends State<PageComponent> {
                   ),
                 ),
                 floatingActionButton: FloatingActionButton(
-                  onPressed: () => BlocProvider.of<AccessBloc>(context).add(GotoPage(accessState.pageId + 1)),
+                  onPressed: () {
+                    print(
+                        'UI: BUTTON PRESS when ${accessState.pageId.toString()}');
+                    BlocProvider.of<AccessBloc>(context)
+                        .add(GotoPage(accessState.pageId + 1));
+                  },
                   tooltip: 'Next page',
                   child: const Icon(Icons.add),
                 ),
               );
-
             } else {
               return const Text('Not PageState');
             }
           }),
-      listener: (BuildContext context, accessState) {
+      listener: (BuildContext context, AccessState accessState) {
+        print('listener, accessState: ${accessState}');
         if (accessState is PageState) {
+          print('listener, pageState.pageId: ${accessState.pageId}');
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => PageComponent()),
@@ -83,7 +90,6 @@ class _PageComponentState extends State<PageComponent> {
         }
       },
     );
-
   }
 }
 
@@ -114,7 +120,7 @@ class AccessInit extends AccessEvent {
   AccessInit(this.initialPageId);
 
   @override
-  List<Object?> get props => [ initialPageId ];
+  List<Object?> get props => [initialPageId];
 }
 
 class GotoPage extends AccessEvent {
@@ -123,7 +129,7 @@ class GotoPage extends AccessEvent {
   GotoPage(this.pageId);
 
   @override
-  List<Object?> get props => [ pageId ];
+  List<Object?> get props => [pageId];
 }
 
 abstract class AccessState extends Equatable {
@@ -133,9 +139,7 @@ abstract class AccessState extends Equatable {
   List<Object?> get props => [];
 }
 
-class UndeterminedState extends AccessState {
-
-}
+class UndeterminedState extends AccessState {}
 
 class PageState extends AccessState {
   final int pageId;
@@ -143,11 +147,9 @@ class PageState extends AccessState {
   PageState(this.pageId);
 
   @override
-  List<Object?> get props => [ pageId ];
+  List<Object?> get props => [pageId];
 
   @override
-  bool operator == (Object other) =>
-      identical(this, other) ||
-          other is PageState &&
-              pageId == other.pageId;
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PageState && pageId == other.pageId;
 }
